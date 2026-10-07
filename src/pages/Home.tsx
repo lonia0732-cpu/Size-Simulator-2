@@ -43,6 +43,10 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
+const MAX_IMAGE_DIMENSION = 10000;
+const MAX_IMAGE_PIXELS = 40_000_000;
+
 const INITIAL_PIECES: Piece[] = [
   {
     id: "figure",
