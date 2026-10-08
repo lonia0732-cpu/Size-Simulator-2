@@ -2400,7 +2400,7 @@ export default function Home() {
 
       <footer>
         STAND<span>SCALE</span> · 투명 이미지
-        기반 아크릴 규격 계산 도구
+        기반 아크릴 규격 계산 도구 · v.3.4.1
       </footer>
     </main>
   );
