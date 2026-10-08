@@ -1,45 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#F5F7FF"/>
+  <rect width="64" height="64" rx="18" fill="#6C8FF5"/>
 
   <path
-    d="M39 14
-       L24 29
-       C20 33 20 37 24 40
-       C28 43 33 42 37 38
-       L45 30"
+    d="M43 20
+       C40 16 35 14 30 14
+       C23 14 18 18 18 23
+       C18 29 23 31 31 33
+       C39 35 44 38 44 44
+       C44 50 38 54 30 54
+       C24 54 19 51 16 47"
     fill="none"
-    stroke="#6C8FF5"
-    stroke-width="7"
+    stroke="white"
+    stroke-width="6"
     stroke-linecap="round"
-    stroke-linejoin="round"
   />
 
   <path
-    d="M28 48
-       L47 29"
-    fill="none"
-    stroke="#8B7CF6"
+    d="M43 14 L50 21"
+    stroke="#DCD7FF"
     stroke-width="5"
     stroke-linecap="round"
   />
 
   <path
-    d="M43 25
-       L49 31
-       M38 30
-       L44 36
-       M33 35
-       L39 41"
-    fill="none"
-    stroke="#8B7CF6"
-    stroke-width="2.5"
+    d="M48 18 L42 24"
+    stroke="#DCD7FF"
+    stroke-width="3"
     stroke-linecap="round"
-  />
-
-  <circle
-    cx="24"
-    cy="40"
-    r="3"
-    fill="#8B7CF6"
   />
 </svg>
