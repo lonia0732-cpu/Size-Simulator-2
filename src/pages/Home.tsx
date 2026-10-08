@@ -552,11 +552,35 @@ export default function Home() {
   };
 
   const loadFile = async (id: Piece["id"], file: File) => {
-    if (!file.type.startsWith("image/")) {
-      updatePiece(id, { error: "이미지 파일만 올릴 수 있어요." });
+    const allowedTypes = ["image/png", "image/webp", "image/gif"];
+    
+    if (!allowedTypes.includes(file.type)) {
+      updatePiece(id, { error: "PNG, WebP, GIF 이미지만 올릴 수 있어요." });
       return;
-    }
-    updatePiece(id, { loading: true, error: null });
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    updatePiece(id, {
+      error: "이미지는 15MB 이하만 업로드할 수 있어요.",
+    });
+    return;
+  }
+
+  updatePiece(id, { loading: true, error: null });
+
+  try {
+    const image = await readTransparentBounds(file);
+    updatePiece(id, { image, loading: false, error: null });
+  } catch (error) {
+    updatePiece(id, {
+      loading: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "이미지를 처리하지 못했습니다.",
+    });
+  }
+};
     try {
       const image = await readTransparentBounds(file);
       updatePiece(id, { image, loading: false, error: null });
