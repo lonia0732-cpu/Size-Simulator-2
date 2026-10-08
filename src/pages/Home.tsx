@@ -444,7 +444,36 @@ async function readTransparentBounds(
       (resolve, reject) => {
         const element = new Image();
 
-        element.onload = () => resolve(element);
+        element.onload = () => {
+          if (
+            element.naturalWidth >
+              MAX_IMAGE_DIMENSION ||
+            element.naturalHeight >
+              MAX_IMAGE_DIMENSION
+          ) {
+            reject(
+              new Error(
+                `이미지 크기가 너무 커요. 최대 ${MAX_IMAGE_DIMENSION.toLocaleString()} × ${MAX_IMAGE_DIMENSION.toLocaleString()}px까지 지원합니다.`,
+              ),
+            );
+            return;
+          }
+
+          if (
+            element.naturalWidth *
+              element.naturalHeight >
+            MAX_IMAGE_PIXELS
+          ) {
+            reject(
+              new Error(
+                `이미지 해상도가 너무 높아요. 최대 ${MAX_IMAGE_PIXELS.toLocaleString()}픽셀까지 지원합니다.`,
+              ),
+            );
+            return;
+          }
+
+          resolve(element);
+        };
 
         element.onerror = () =>
           reject(
@@ -1181,7 +1210,6 @@ export default function Home() {
     );
   };
 
-  // 2번 수정: 파일 형식 및 파일 크기 제한
   const loadFile = async (
     id: Piece["id"],
     file: File,
@@ -1770,4 +1798,4 @@ export default function Home() {
       </footer>
     </main>
   );
-        }
+                }
