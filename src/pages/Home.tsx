@@ -47,6 +47,13 @@ const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 const MAX_IMAGE_DIMENSION = 10000;
 const MAX_IMAGE_PIXELS = 40_000_000;
 
+const MAX_SUM_MM = 5000;
+const MAX_MARGIN_MM = 100;
+const MAX_DIAGONAL_INCH = 100;
+
+const MAX_CANVAS_DIMENSION = 10000;
+const MAX_CANVAS_PIXELS = 50_000_000;
+
 const INITIAL_PIECES: Piece[] = [
   {
     id: "figure",
@@ -78,75 +85,184 @@ function formatMm(value: number, digits = 1) {
 
 function calculate(piece: Piece) {
   if (!piece.image) return null;
-  const ratio = piece.image.alphaWidth / piece.image.alphaHeight;
-  const usableSum = piece.sumMm - piece.marginMm * 4;
-  if (usableSum <= 0 || !Number.isFinite(ratio)) return null;
 
-  const imageHeight = usableSum / (ratio + 1);
-  const imageWidth = ratio * imageHeight;
+  const ratio =
+    piece.image.alphaWidth / piece.image.alphaHeight;
+
+  const usableSum =
+    piece.sumMm - piece.marginMm * 4;
+
+  if (
+    usableSum <= 0 ||
+    !Number.isFinite(ratio)
+  ) {
+    return null;
+  }
+
+  const imageHeight =
+    usableSum / (ratio + 1);
+
+  const imageWidth =
+    ratio * imageHeight;
+
   return {
     ratio,
     imageWidth,
     imageHeight,
-    outerWidth: imageWidth + piece.marginMm * 2,
-    outerHeight: imageHeight + piece.marginMm * 2,
+    outerWidth:
+      imageWidth + piece.marginMm * 2,
+    outerHeight:
+      imageHeight + piece.marginMm * 2,
   };
 }
 
 function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("비교 이미지를 읽을 수 없습니다."));
-    image.src = src;
-  });
+  return new Promise<HTMLImageElement>(
+    (resolve, reject) => {
+      const image = new Image();
+
+      image.onload = () =>
+        resolve(image);
+
+      image.onerror = () =>
+        reject(
+          new Error(
+            "비교 이미지를 읽을 수 없습니다.",
+          ),
+        );
+
+      image.src = src;
+    },
+  );
 }
 
 async function createComparisonCanvas(
   pieces: Piece[],
   diagonal: number,
-  screenSize: { width: number; height: number },
+  screenSize: {
+    width: number;
+    height: number;
+  },
 ) {
-  const validPieces = pieces.filter((piece) => piece.image && calculate(piece));
-  if (!validPieces.length) throw new Error("계산된 이미지가 없습니다.");
+  const validPieces = pieces.filter(
+    (piece) =>
+      piece.image &&
+      calculate(piece),
+  );
+
+  if (!validPieces.length) {
+    throw new Error(
+      "계산된 이미지가 없습니다.",
+    );
+  }
 
   const rulerLeft = 54;
   const topRuler = 34;
   const panelPadding = 25;
   const panelGap = 34;
   const panelWidth = 520;
+
   const desiredPxPerMm =
-    Math.hypot(screenSize.width, screenSize.height) /
+    Math.hypot(
+      screenSize.width,
+      screenSize.height,
+    ) /
     (diagonal * 25.4);
+
   const maxWidthMm = Math.max(
-    ...validPieces.map((piece) => calculate(piece)?.outerWidth ?? 0),
+    ...validPieces.map(
+      (piece) =>
+        calculate(piece)
+          ?.outerWidth ?? 0,
+    ),
   );
+
   const maxWidthPxPerMm =
-    (panelWidth - rulerLeft - 30) / Math.max(maxWidthMm, 1);
+    (panelWidth -
+      rulerLeft -
+      30) /
+    Math.max(maxWidthMm, 1);
+
   const pxPerMm = Math.max(
     1.8,
-    Math.min(5.2, desiredPxPerMm, maxWidthPxPerMm),
+    Math.min(
+      5.2,
+      desiredPxPerMm,
+      maxWidthPxPerMm,
+    ),
   );
+
   const maxHeightMm = Math.max(
-    ...validPieces.map((piece) => calculate(piece)?.outerHeight ?? 0),
+    ...validPieces.map(
+      (piece) =>
+        calculate(piece)
+          ?.outerHeight ?? 0,
+    ),
   );
+
   const panelHeight = Math.max(
     280,
-    topRuler + maxHeightMm * pxPerMm + panelPadding * 2 + 40,
+    topRuler +
+      maxHeightMm * pxPerMm +
+      panelPadding * 2 +
+      40,
   );
+
   const width =
     panelPadding * 2 +
-    panelWidth * validPieces.length +
-    panelGap * (validPieces.length - 1);
-  const height = 230 + panelHeight;
+    panelWidth *
+      validPieces.length +
+    panelGap *
+      (validPieces.length - 1);
+
+  const height =
+    230 + panelHeight;
+
   const scale = 2;
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width * scale;
-  canvas.height = height * scale;
+  const canvasWidth =
+    width * scale;
 
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("비교 이미지를 만들 수 없습니다.");
+  const canvasHeight =
+    height * scale;
+
+  if (
+    canvasWidth >
+      MAX_CANVAS_DIMENSION ||
+    canvasHeight >
+      MAX_CANVAS_DIMENSION
+  ) {
+    throw new Error(
+      "비교 이미지가 너무 커요. 입력한 규격을 조금 줄여주세요.",
+    );
+  }
+
+  if (
+    canvasWidth *
+      canvasHeight >
+    MAX_CANVAS_PIXELS
+  ) {
+    throw new Error(
+      "비교 이미지의 해상도가 너무 높아요. 입력한 규격을 조금 줄여주세요.",
+    );
+  }
+
+  const canvas =
+    document.createElement(
+      "canvas",
+    );
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  const context =
+    canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error(
+      "비교 이미지를 만들 수 없습니다.",
+    );
+  }
 
   context.scale(scale, scale);
 
@@ -162,7 +278,11 @@ async function createComparisonCanvas(
     context.fillStyle = color;
     context.font = `${weight} ${size}px Arial, sans-serif`;
     context.textAlign = align;
-    context.fillText(value, x, y);
+    context.fillText(
+      value,
+      x,
+      y,
+    );
   };
 
   const roundedRect = (
@@ -175,17 +295,52 @@ async function createComparisonCanvas(
     stroke?: string,
   ) => {
     context.beginPath();
-    context.moveTo(x + radius, y);
-    context.arcTo(x + w, y, x + w, y + h, radius);
-    context.arcTo(x + w, y + h, x, y + h, radius);
-    context.arcTo(x, y + h, x, y, radius);
-    context.arcTo(x, y, x + w, y, radius);
+
+    context.moveTo(
+      x + radius,
+      y,
+    );
+
+    context.arcTo(
+      x + w,
+      y,
+      x + w,
+      y + h,
+      radius,
+    );
+
+    context.arcTo(
+      x + w,
+      y + h,
+      x,
+      y + h,
+      radius,
+    );
+
+    context.arcTo(
+      x,
+      y + h,
+      x,
+      y,
+      radius,
+    );
+
+    context.arcTo(
+      x,
+      y,
+      x + w,
+      y,
+      radius,
+    );
+
     context.closePath();
+
     context.fillStyle = fill;
     context.fill();
 
     if (stroke) {
-      context.strokeStyle = stroke;
+      context.strokeStyle =
+        stroke;
       context.stroke();
     }
   };
@@ -194,44 +349,91 @@ async function createComparisonCanvas(
     x: number,
     y: number,
     lengthMm: number,
-    direction: "horizontal" | "vertical",
+    direction:
+      | "horizontal"
+      | "vertical",
   ) => {
-    const lengthPx = lengthMm * pxPerMm;
+    const lengthPx =
+      lengthMm * pxPerMm;
 
-    context.strokeStyle = "#827770";
+    context.strokeStyle =
+      "#827770";
+
     context.lineWidth = 1;
+
     context.beginPath();
 
-    if (direction === "horizontal") {
+    if (
+      direction ===
+      "horizontal"
+    ) {
       context.moveTo(x, y);
-      context.lineTo(x + lengthPx, y);
+      context.lineTo(
+        x + lengthPx,
+        y,
+      );
     } else {
       context.moveTo(x, y);
-      context.lineTo(x, y + lengthPx);
+      context.lineTo(
+        x,
+        y + lengthPx,
+      );
     }
 
     context.stroke();
 
-    for (let mm = 0; mm <= Math.ceil(lengthMm); mm += 1) {
-      const position = mm * pxPerMm;
-      const major = mm % 10 === 0;
-      const medium = mm % 5 === 0;
-      const tick = major ? 13 : medium ? 9 : 5;
+    for (
+      let mm = 0;
+      mm <= Math.ceil(lengthMm);
+      mm += 1
+    ) {
+      const position =
+        mm * pxPerMm;
 
-      context.strokeStyle = major
-        ? "#5f5651"
+      const major =
+        mm % 10 === 0;
+
+      const medium =
+        mm % 5 === 0;
+
+      const tick = major
+        ? 13
         : medium
-          ? "#897e78"
-          : "#b6aaa3";
+          ? 9
+          : 5;
+
+      context.strokeStyle =
+        major
+          ? "#5f5651"
+          : medium
+            ? "#897e78"
+            : "#b6aaa3";
 
       context.beginPath();
 
-      if (direction === "horizontal") {
-        context.moveTo(x + position, y);
-        context.lineTo(x + position, y + tick);
+      if (
+        direction ===
+        "horizontal"
+      ) {
+        context.moveTo(
+          x + position,
+          y,
+        );
+
+        context.lineTo(
+          x + position,
+          y + tick,
+        );
       } else {
-        context.moveTo(x, y + position);
-        context.lineTo(x + tick, y + position);
+        context.moveTo(
+          x,
+          y + position,
+        );
+
+        context.lineTo(
+          x + tick,
+          y + position,
+        );
       }
 
       context.stroke();
@@ -239,24 +441,58 @@ async function createComparisonCanvas(
       if (major) {
         text(
           String(mm),
-          direction === "horizontal" ? x + position + 2 : x - 7,
-          direction === "horizontal"
+          direction ===
+            "horizontal"
+            ? x +
+                position +
+                2
+            : x - 7,
+          direction ===
+            "horizontal"
             ? y - 7
-            : y + position + 3,
+            : y +
+                position +
+                3,
           9,
           "#726963",
           "400",
-          direction === "horizontal" ? "left" : "right",
+          direction ===
+            "horizontal"
+            ? "left"
+            : "right",
         );
       }
     }
   };
 
-  context.fillStyle = "#f7f4ef";
-  context.fillRect(0, 0, width, height);
+  context.fillStyle =
+    "#f7f4ef";
 
-  text("STANDSCALE", 28, 32, 13, "#e86e5c", "700");
-  text("실물 크기 비교 캡처", 28, 70, 30, "#2d2a31", "700");
+  context.fillRect(
+    0,
+    0,
+    width,
+    height,
+  );
+
+  text(
+    "STANDSCALE",
+    28,
+    32,
+    13,
+    "#e86e5c",
+    "700",
+  );
+
+  text(
+    "실물 크기 비교 캡처",
+    28,
+    70,
+    30,
+    "#2d2a31",
+    "700",
+  );
+
   text(
     "사이트의 실물 크기 비교 영역을 그대로 저장한 비교용 이미지",
     28,
@@ -265,8 +501,11 @@ async function createComparisonCanvas(
     "#706966",
     "400",
   );
+
   text(
-    `1mm = ${pxPerMm.toFixed(2)}px · 화면 ${screenSize.width} × ${screenSize.height}px · ${diagonal} inch`,
+    `1mm = ${pxPerMm.toFixed(
+      2,
+    )}px · 화면 ${screenSize.width} × ${screenSize.height}px · ${diagonal} inch`,
     width - 28,
     32,
     10,
@@ -294,20 +533,52 @@ async function createComparisonCanvas(
     "700",
   );
 
-  for (let index = 0; index < validPieces.length; index += 1) {
-    const piece = validPieces[index];
-    const result = calculate(piece);
+  for (
+    let index = 0;
+    index < validPieces.length;
+    index += 1
+  ) {
+    const piece =
+      validPieces[index];
 
-    if (!piece.image || !result) continue;
+    const result =
+      calculate(piece);
+
+    if (
+      !piece.image ||
+      !result
+    ) {
+      continue;
+    }
 
     const accent =
-      piece.accent === "coral" ? "#e86e5c" : "#7a6cce";
-    const cardX = panelPadding + index * (panelWidth + panelGap);
+      piece.accent === "coral"
+        ? "#e86e5c"
+        : "#7a6cce";
+
+    const cardX =
+      panelPadding +
+      index *
+        (panelWidth +
+          panelGap);
+
     const cardY = 178;
-    const cutX = cardX + rulerLeft;
-    const cutY = cardY + topRuler + 40;
-    const outerW = result.outerWidth * pxPerMm;
-    const outerH = result.outerHeight * pxPerMm;
+
+    const cutX =
+      cardX + rulerLeft;
+
+    const cutY =
+      cardY +
+      topRuler +
+      40;
+
+    const outerW =
+      result.outerWidth *
+      pxPerMm;
+
+    const outerH =
+      result.outerHeight *
+      pxPerMm;
 
     roundedRect(
       cardX,
@@ -319,13 +590,27 @@ async function createComparisonCanvas(
       "#e4ddd7",
     );
 
-    context.fillStyle = accent;
+    context.fillStyle =
+      accent;
+
     context.beginPath();
-    context.arc(cardX + 24, cardY + 27, 5, 0, Math.PI * 2);
+
+    context.arc(
+      cardX + 24,
+      cardY + 27,
+      5,
+      0,
+      Math.PI * 2,
+    );
+
     context.fill();
 
     text(
-      `${piece.shortName} · ${formatMm(result.outerWidth)} × ${formatMm(result.outerHeight)} mm`,
+      `${piece.shortName} · ${formatMm(
+        result.outerWidth,
+      )} × ${formatMm(
+        result.outerHeight,
+      )} mm`,
       cardX + 37,
       cardY + 31,
       12,
@@ -348,39 +633,90 @@ async function createComparisonCanvas(
     );
 
     context.save();
-    context.setLineDash([3, 3]);
-    context.strokeStyle = "#827770";
-    context.strokeRect(cutX, cutY, outerW, outerH);
+
+    context.setLineDash([
+      3,
+      3,
+    ]);
+
+    context.strokeStyle =
+      "#827770";
+
+    context.strokeRect(
+      cutX,
+      cutY,
+      outerW,
+      outerH,
+    );
+
     context.restore();
 
-    context.fillStyle = "rgba(255,255,255,.35)";
-    context.fillRect(cutX, cutY, outerW, outerH);
+    context.fillStyle =
+      "rgba(255,255,255,.35)";
 
-    const image = await loadImage(piece.image.previewUrl);
-    const marginPx = piece.marginMm * pxPerMm;
-
-    const fitScale = Math.min(
-      (outerW - marginPx * 2) / result.imageWidth,
-      (outerH - marginPx * 2) / result.imageHeight,
+    context.fillRect(
+      cutX,
+      cutY,
+      outerW,
+      outerH,
     );
 
-    const imageW = Math.max(
-      1,
-      result.imageWidth * fitScale,
-    );
+    const image =
+      await loadImage(
+        piece.image.previewUrl,
+      );
 
-    const imageH = Math.max(
-      1,
-      result.imageHeight * fitScale,
-    );
+    const marginPx =
+      piece.marginMm *
+      pxPerMm;
 
-    const imageX = cutX + (outerW - imageW) / 2;
-    const imageY = cutY + (outerH - imageH) / 2;
+    const fitScale =
+      Math.min(
+        (outerW -
+          marginPx * 2) /
+          result.imageWidth,
+        (outerH -
+          marginPx * 2) /
+          result.imageHeight,
+      );
+
+    const imageW =
+      Math.max(
+        1,
+        result.imageWidth *
+          fitScale,
+      );
+
+    const imageH =
+      Math.max(
+        1,
+        result.imageHeight *
+          fitScale,
+      );
+
+    const imageX =
+      cutX +
+      (outerW - imageW) /
+        2;
+
+    const imageY =
+      cutY +
+      (outerH - imageH) /
+        2;
 
     context.save();
+
     context.beginPath();
-    context.rect(cutX, cutY, outerW, outerH);
+
+    context.rect(
+      cutX,
+      cutY,
+      outerW,
+      outerH,
+    );
+
     context.clip();
+
     context.drawImage(
       image,
       imageX,
@@ -388,23 +724,37 @@ async function createComparisonCanvas(
       imageW,
       imageH,
     );
+
     context.restore();
 
     context.save();
-    context.setLineDash([2, 2]);
-    context.strokeStyle = accent;
+
+    context.setLineDash([
+      2,
+      2,
+    ]);
+
+    context.strokeStyle =
+      accent;
+
     context.strokeRect(
       imageX,
       imageY,
       imageW,
       imageH,
     );
+
     context.restore();
 
     text(
-      `가로 ${formatMm(result.outerWidth)} mm`,
-      cutX + outerW / 2,
-      cutY + outerH + 22,
+      `가로 ${formatMm(
+        result.outerWidth,
+      )} mm`,
+      cutX +
+        outerW / 2,
+      cutY +
+        outerH +
+        22,
       10,
       "#746d6a",
       "500",
@@ -412,9 +762,12 @@ async function createComparisonCanvas(
     );
 
     text(
-      `세로 ${formatMm(result.outerHeight)} mm`,
+      `세로 ${formatMm(
+        result.outerHeight,
+      )} mm`,
       cardX + 15,
-      cutY + outerH / 2,
+      cutY +
+        outerH / 2,
       10,
       "#746d6a",
       "500",
@@ -437,81 +790,107 @@ async function createComparisonCanvas(
 async function readTransparentBounds(
   file: File,
 ): Promise<ImageInfo> {
-  const sourceUrl = URL.createObjectURL(file);
+  const sourceUrl =
+    URL.createObjectURL(file);
 
   try {
-    const image = await new Promise<HTMLImageElement>(
-      (resolve, reject) => {
-        const element = new Image();
+    const image =
+      await new Promise<HTMLImageElement>(
+        (resolve, reject) => {
+          const element =
+            new Image();
 
-        element.onload = () => {
-          if (
-            element.naturalWidth >
-              MAX_IMAGE_DIMENSION ||
-            element.naturalHeight >
-              MAX_IMAGE_DIMENSION
-          ) {
-            reject(
-              new Error(
-                `이미지 크기가 너무 커요. 최대 ${MAX_IMAGE_DIMENSION.toLocaleString()} × ${MAX_IMAGE_DIMENSION.toLocaleString()}px까지 지원합니다.`,
-              ),
-            );
-            return;
-          }
-
-          if (
-            element.naturalWidth *
+          element.onload = () => {
+            if (
+              element.naturalWidth >
+                MAX_IMAGE_DIMENSION ||
               element.naturalHeight >
-            MAX_IMAGE_PIXELS
-          ) {
+                MAX_IMAGE_DIMENSION
+            ) {
+              reject(
+                new Error(
+                  `이미지 크기가 너무 커요. 최대 ${MAX_IMAGE_DIMENSION.toLocaleString()} × ${MAX_IMAGE_DIMENSION.toLocaleString()}px까지 지원합니다.`,
+                ),
+              );
+
+              return;
+            }
+
+            if (
+              element.naturalWidth *
+                element.naturalHeight >
+              MAX_IMAGE_PIXELS
+            ) {
+              reject(
+                new Error(
+                  `이미지 해상도가 너무 높아요. 최대 ${MAX_IMAGE_PIXELS.toLocaleString()}픽셀까지 지원합니다.`,
+                ),
+              );
+
+              return;
+            }
+
+            resolve(element);
+          };
+
+          element.onerror = () =>
             reject(
               new Error(
-                `이미지 해상도가 너무 높아요. 최대 ${MAX_IMAGE_PIXELS.toLocaleString()}픽셀까지 지원합니다.`,
+                "이미지를 읽을 수 없습니다.",
               ),
             );
-            return;
-          }
 
-          resolve(element);
-        };
+          element.src =
+            sourceUrl;
+        },
+      );
 
-        element.onerror = () =>
-          reject(
-            new Error("이미지를 읽을 수 없습니다."),
-          );
+    const longest =
+      Math.max(
+        image.naturalWidth,
+        image.naturalHeight,
+      );
 
-        element.src = sourceUrl;
-      },
-    );
+    const scale =
+      Math.min(
+        1,
+        2048 / longest,
+      );
 
-    const longest = Math.max(
-      image.naturalWidth,
-      image.naturalHeight,
-    );
+    const width =
+      Math.max(
+        1,
+        Math.round(
+          image.naturalWidth *
+            scale,
+        ),
+      );
 
-    const scale = Math.min(
-      1,
-      2048 / longest,
-    );
+    const height =
+      Math.max(
+        1,
+        Math.round(
+          image.naturalHeight *
+            scale,
+        ),
+      );
 
-    const width = Math.max(
-      1,
-      Math.round(image.naturalWidth * scale),
-    );
+    const canvas =
+      document.createElement(
+        "canvas",
+      );
 
-    const height = Math.max(
-      1,
-      Math.round(image.naturalHeight * scale),
-    );
-
-    const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
 
-    const context = canvas.getContext(
-      "2d",
-      { willReadFrequently: true },
-    );
+    const context =
+      canvas.getContext(
+        "2d",
+        {
+          willReadFrequently:
+            true,
+        },
+      );
 
     if (!context) {
       throw new Error(
@@ -527,12 +906,13 @@ async function readTransparentBounds(
       height,
     );
 
-    const data = context.getImageData(
-      0,
-      0,
-      width,
-      height,
-    ).data;
+    const data =
+      context.getImageData(
+        0,
+        0,
+        width,
+        height,
+      ).data;
 
     let minX = width;
     let minY = height;
@@ -540,36 +920,74 @@ async function readTransparentBounds(
     let maxY = -1;
     let transparentPixels = 0;
 
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
+    for (
+      let y = 0;
+      y < height;
+      y += 1
+    ) {
+      for (
+        let x = 0;
+        x < width;
+        x += 1
+      ) {
         const alpha =
-          data[(y * width + x) * 4 + 3];
+          data[
+            (y * width + x) *
+              4 +
+              3
+          ];
 
         if (alpha > 10) {
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
+          minX = Math.min(
+            minX,
+            x,
+          );
+
+          minY = Math.min(
+            minY,
+            y,
+          );
+
+          maxX = Math.max(
+            maxX,
+            x,
+          );
+
+          maxY = Math.max(
+            maxY,
+            y,
+          );
         } else {
           transparentPixels += 1;
         }
       }
     }
 
-    if (maxX < 0 || maxY < 0) {
+    if (
+      maxX < 0 ||
+      maxY < 0
+    ) {
       throw new Error(
         "투명하지 않은 픽셀을 찾지 못했습니다.",
       );
     }
 
-    const cropWidth = maxX - minX + 1;
-    const cropHeight = maxY - minY + 1;
+    const cropWidth =
+      maxX - minX + 1;
 
-    const crop = document.createElement("canvas");
+    const cropHeight =
+      maxY - minY + 1;
+
+    const crop =
+      document.createElement(
+        "canvas",
+      );
+
     crop.width = cropWidth;
     crop.height = cropHeight;
 
-    const cropContext = crop.getContext("2d");
+    const cropContext =
+      crop.getContext("2d");
 
     if (!cropContext) {
       throw new Error(
@@ -591,9 +1009,14 @@ async function readTransparentBounds(
 
     return {
       filename: file.name,
-      previewUrl: crop.toDataURL("image/png"),
-      originalWidth: image.naturalWidth,
-      originalHeight: image.naturalHeight,
+      previewUrl:
+        crop.toDataURL(
+          "image/png",
+        ),
+      originalWidth:
+        image.naturalWidth,
+      originalHeight:
+        image.naturalHeight,
       alphaWidth: Math.round(
         cropWidth / scale,
       ),
@@ -604,7 +1027,9 @@ async function readTransparentBounds(
         transparentPixels > 0,
     };
   } finally {
-    URL.revokeObjectURL(sourceUrl);
+    URL.revokeObjectURL(
+      sourceUrl,
+    );
   }
 }
 
@@ -613,12 +1038,14 @@ function NumberField({
   value,
   onChange,
   min = 0,
+  max,
   suffix,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
+  max?: number;
   suffix: string;
 }) {
   return (
@@ -630,11 +1057,37 @@ function NumberField({
           type="number"
           inputMode="decimal"
           min={min}
+          max={max}
           step="0.1"
           value={value}
-          onChange={(event) =>
-            onChange(Number(event.target.value))
-          }
+          onChange={(event) => {
+            const parsed =
+              Number(
+                event.target.value,
+              );
+
+            if (
+              !Number.isFinite(
+                parsed,
+              )
+            ) {
+              onChange(min);
+              return;
+            }
+
+            const limited =
+              Math.max(
+                min,
+                max !== undefined
+                  ? Math.min(
+                      max,
+                      parsed,
+                    )
+                  : parsed,
+              );
+
+            onChange(limited);
+          }}
         />
 
         <em>{suffix}</em>
@@ -650,15 +1103,21 @@ function SizingPanel({
   onClear,
 }: {
   piece: Piece;
-  onUpdate: (change: Partial<Piece>) => void;
+  onUpdate: (
+    change: Partial<Piece>,
+  ) => void;
   onFile: (file: File) => void;
   onClear: () => void;
 }) {
-  const result = calculate(piece);
+  const result =
+    calculate(piece);
+
   const [isDragOver, setIsDragOver] =
     useState(false);
 
-  const selectFile = (file?: File) => {
+  const selectFile = (
+    file?: File,
+  ) => {
     if (file) onFile(file);
   };
 
@@ -674,6 +1133,7 @@ function SizingPanel({
   ) => {
     event.preventDefault();
     setIsDragOver(false);
+
     selectFile(
       event.dataTransfer.files?.[0],
     );
@@ -695,7 +1155,8 @@ function SizingPanel({
             className="panel-orb"
             aria-hidden="true"
           >
-            {piece.accent === "coral" ? (
+            {piece.accent ===
+            "coral" ? (
               <Sparkles size={18} />
             ) : (
               <Maximize2 size={18} />
@@ -706,6 +1167,7 @@ function SizingPanel({
             <span className="eyebrow">
               독립 계산
             </span>
+
             <h2>{piece.name}</h2>
           </div>
         </div>
@@ -724,9 +1186,13 @@ function SizingPanel({
 
       <label
         className={`dropzone ${
-          isDragOver ? "is-dragging" : ""
+          isDragOver
+            ? "is-dragging"
+            : ""
         } ${
-          piece.image ? "has-image" : ""
+          piece.image
+            ? "has-image"
+            : ""
         }`}
         onDragOver={(event) => {
           event.preventDefault();
@@ -749,6 +1215,7 @@ function SizingPanel({
               className="spin"
               size={24}
             />
+
             <strong>
               투명 영역을 읽는 중…
             </strong>
@@ -757,14 +1224,20 @@ function SizingPanel({
           <>
             <div className="image-checker">
               <img
-                src={piece.image.previewUrl}
+                src={
+                  piece.image
+                    .previewUrl
+                }
                 alt={`${piece.name} 투명 이미지 미리보기`}
               />
             </div>
 
             <div className="image-meta">
               <span className="file-name">
-                {piece.image.filename}
+                {
+                  piece.image
+                    .filename
+                }
               </span>
 
               <span>
@@ -798,7 +1271,8 @@ function SizingPanel({
 
       {piece.error && (
         <p className="error-message">
-          <X size={14} /> {piece.error}
+          <X size={14} />{" "}
+          {piece.error}
         </p>
       )}
 
@@ -810,6 +1284,7 @@ function SizingPanel({
             onUpdate({ sumMm })
           }
           min={1}
+          max={MAX_SUM_MM}
           suffix="mm"
         />
 
@@ -820,26 +1295,33 @@ function SizingPanel({
             onUpdate({ marginMm })
           }
           min={0}
+          max={MAX_MARGIN_MM}
           suffix="mm"
         />
       </div>
 
-      {piece.image && result ? (
+      {piece.image &&
+      result ? (
         <div className="result-block">
           <div className="result-kicker">
-            <Check size={14} /> 주문 규격
+            <Check size={14} />{" "}
+            주문 규격
           </div>
 
           <div className="dimension-line">
             <strong>
-              {formatMm(result.outerWidth)}{" "}
+              {formatMm(
+                result.outerWidth,
+              )}{" "}
               <small>mm</small>
             </strong>
 
             <span>×</span>
 
             <strong>
-              {formatMm(result.outerHeight)}{" "}
+              {formatMm(
+                result.outerHeight,
+              )}{" "}
               <small>mm</small>
             </strong>
           </div>
@@ -858,21 +1340,30 @@ function SizingPanel({
 
             <span>
               그림{" "}
-              {formatMm(result.imageWidth)} ×{" "}
-              {formatMm(result.imageHeight)}mm
+              {formatMm(
+                result.imageWidth,
+              )}{" "}
+              ×{" "}
+              {formatMm(
+                result.imageHeight,
+              )}
+              mm
             </span>
           </div>
         </div>
       ) : piece.image ? (
         <div className="invalid-block">
           가로+세로 합은 여백 총합(
-          {formatMm(piece.marginMm * 4)}
+          {formatMm(
+            piece.marginMm *
+              4,
+          )}
           mm)보다 커야 해요.
         </div>
       ) : (
         <div className="empty-result">
-          이미지를 올리면 투명 여백을 제외한
-          비율로 계산됩니다.
+          이미지를 올리면 투명 여백을
+          제외한 비율로 계산됩니다.
         </div>
       )}
     </section>
@@ -886,9 +1377,14 @@ function VerticalRuler({
   length: number;
   pixelsPerMm: number;
 }) {
-  const visibleLength = Math.ceil(length);
+  const visibleLength =
+    Math.ceil(length);
+
   const ticks = Array.from(
-    { length: visibleLength + 1 },
+    {
+      length:
+        visibleLength + 1,
+    },
     (_, index) => index,
   );
 
@@ -932,9 +1428,14 @@ function HorizontalRuler({
   length: number;
   pixelsPerMm: number;
 }) {
-  const visibleLength = Math.ceil(length);
+  const visibleLength =
+    Math.ceil(length);
+
   const ticks = Array.from(
-    { length: visibleLength + 1 },
+    {
+      length:
+        visibleLength + 1,
+    },
     (_, index) => index,
   );
 
@@ -978,9 +1479,13 @@ function LifeSizePiece({
   piece: Piece;
   pixelsPerMm: number;
 }) {
-  const result = calculate(piece);
+  const result =
+    calculate(piece);
 
-  if (!piece.image || !result) {
+  if (
+    !piece.image ||
+    !result
+  ) {
     return (
       <div className="life-piece empty-life-piece">
         <div className="life-label">
@@ -1000,15 +1505,24 @@ function LifeSizePiece({
   }
 
   const outerWidthPx =
-    result.outerWidth * pixelsPerMm;
+    result.outerWidth *
+    pixelsPerMm;
+
   const outerHeightPx =
-    result.outerHeight * pixelsPerMm;
+    result.outerHeight *
+    pixelsPerMm;
+
   const innerWidthPx =
-    result.imageWidth * pixelsPerMm;
+    result.imageWidth *
+    pixelsPerMm;
+
   const innerHeightPx =
-    result.imageHeight * pixelsPerMm;
+    result.imageHeight *
+    pixelsPerMm;
+
   const paddingPx =
-    piece.marginMm * pixelsPerMm;
+    piece.marginMm *
+    pixelsPerMm;
 
   return (
     <div className="life-piece">
@@ -1017,14 +1531,23 @@ function LifeSizePiece({
           className={`dot ${piece.accent}`}
         />{" "}
         {piece.shortName} ·{" "}
-        {formatMm(result.outerWidth)} ×{" "}
-        {formatMm(result.outerHeight)} mm
+        {formatMm(
+          result.outerWidth,
+        )}{" "}
+        ×{" "}
+        {formatMm(
+          result.outerHeight,
+        )}{" "}
+        mm
       </div>
 
       <div
         className="measurement-board"
         style={{
-          width: `${outerWidthPx + 54}px`,
+          width: `${
+            outerWidthPx +
+            54
+          }px`,
         }}
       >
         <div className="board-content">
@@ -1033,13 +1556,21 @@ function LifeSizePiece({
           </div>
 
           <HorizontalRuler
-            length={result.outerWidth}
-            pixelsPerMm={pixelsPerMm}
+            length={
+              result.outerWidth
+            }
+            pixelsPerMm={
+              pixelsPerMm
+            }
           />
 
           <VerticalRuler
-            length={result.outerHeight}
-            pixelsPerMm={pixelsPerMm}
+            length={
+              result.outerHeight
+            }
+            pixelsPerMm={
+              pixelsPerMm
+            }
           />
 
           <div
@@ -1054,11 +1585,15 @@ function LifeSizePiece({
             </span>
 
             <span className="corner-label top-right">
-              {formatMm(result.outerWidth)}
+              {formatMm(
+                result.outerWidth,
+              )}
             </span>
 
             <span className="corner-label bottom-left">
-              {formatMm(result.outerHeight)}
+              {formatMm(
+                result.outerHeight,
+              )}
             </span>
 
             <div
@@ -1071,7 +1606,10 @@ function LifeSizePiece({
               }}
             >
               <img
-                src={piece.image.previewUrl}
+                src={
+                  piece.image
+                    .previewUrl
+                }
                 alt={`${piece.name} 실물 크기 미리보기`}
               />
             </div>
@@ -1084,24 +1622,33 @@ function LifeSizePiece({
 
 export default function Home() {
   const [pieces, setPieces] =
-    useState<Piece[]>(INITIAL_PIECES);
+    useState<Piece[]>(
+      INITIAL_PIECES,
+    );
+
   const [diagonal, setDiagonal] =
     useState(13.3);
+
   const [zoom, setZoom] =
     useState(100);
+
   const [screenSize, setScreenSize] =
     useState({
       width: 1440,
       height: 900,
     });
+
   const [copied, setCopied] =
     useState(false);
+
   const [exporting, setExporting] =
     useState(false);
+
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(
       null,
     );
+
   const [isInstalled, setIsInstalled] =
     useState(false);
 
@@ -1135,6 +1682,7 @@ export default function Home() {
       event: Event,
     ) => {
       event.preventDefault();
+
       setInstallPrompt(
         event as BeforeInstallPromptEvent,
       );
@@ -1181,21 +1729,31 @@ export default function Home() {
     };
   }, []);
 
-  const pixelsPerMm = useMemo(() => {
-    const px = Math.hypot(
-      screenSize.width,
-      screenSize.height,
-    );
+  const pixelsPerMm =
+    useMemo(() => {
+      const px = Math.hypot(
+        screenSize.width,
+        screenSize.height,
+      );
 
-    if (!diagonal || diagonal <= 0)
-      return 3.78;
+      if (
+        !diagonal ||
+        diagonal <= 0
+      ) {
+        return 3.78;
+      }
 
-    return (
-      (px /
-        (diagonal * 25.4)) *
-      (zoom / 100)
-    );
-  }, [diagonal, screenSize, zoom]);
+      return (
+        (px /
+          (diagonal *
+            25.4)) *
+        (zoom / 100)
+      );
+    }, [
+      diagonal,
+      screenSize,
+      zoom,
+    ]);
 
   const updatePiece = (
     id: Piece["id"],
@@ -1204,7 +1762,10 @@ export default function Home() {
     setPieces((current) =>
       current.map((piece) =>
         piece.id === id
-          ? { ...piece, ...change }
+          ? {
+              ...piece,
+              ...change,
+            }
           : piece,
       ),
     );
@@ -1220,19 +1781,28 @@ export default function Home() {
       "image/gif",
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    if (
+      !allowedTypes.includes(
+        file.type,
+      )
+    ) {
       updatePiece(id, {
         error:
           "PNG, WebP, GIF 이미지만 올릴 수 있어요.",
       });
+
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (
+      file.size >
+      MAX_FILE_SIZE
+    ) {
       updatePiece(id, {
         error:
           "이미지는 15MB 이하만 업로드할 수 있어요.",
       });
+
       return;
     }
 
@@ -1243,7 +1813,9 @@ export default function Home() {
 
     try {
       const image =
-        await readTransparentBounds(file);
+        await readTransparentBounds(
+          file,
+        );
 
       updatePiece(id, {
         image,
@@ -1312,11 +1884,20 @@ export default function Home() {
     }
   };
 
+  const hasResults =
+    pieces.some((piece) =>
+      calculate(piece),
+    );
+
   const exportComparison = async (
     format: "png" | "pdf",
   ) => {
-    if (!hasResults || exporting)
+    if (
+      !hasResults ||
+      exporting
+    ) {
       return;
+    }
 
     const printWindow =
       format === "pdf"
@@ -1334,6 +1915,7 @@ export default function Home() {
       window.alert(
         "PDF 비교 이미지를 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.",
       );
+
       return;
     }
 
@@ -1347,7 +1929,9 @@ export default function Home() {
           screenSize,
         );
 
-      if (format === "png") {
+      if (
+        format === "png"
+      ) {
         const blob =
           await new Promise<Blob | null>(
             (resolve) =>
@@ -1364,10 +1948,14 @@ export default function Home() {
         }
 
         const objectUrl =
-          URL.createObjectURL(blob);
+          URL.createObjectURL(
+            blob,
+          );
 
         const link =
-          document.createElement("a");
+          document.createElement(
+            "a",
+          );
 
         link.download = `standscale-실물크기-비교-${new Date()
           .toISOString()
@@ -1376,21 +1964,35 @@ export default function Home() {
             10,
           )}.png`;
 
-        link.href = objectUrl;
-        link.rel = "noopener";
+        link.href =
+          objectUrl;
 
-        document.body.appendChild(link);
+        link.rel =
+          "noopener";
+
+        document.body.appendChild(
+          link,
+        );
+
         link.click();
 
-        window.setTimeout(() => {
-          link.remove();
-          URL.revokeObjectURL(
-            objectUrl,
-          );
-        }, 1000);
-      } else if (printWindow) {
+        window.setTimeout(
+          () => {
+            link.remove();
+
+            URL.revokeObjectURL(
+              objectUrl,
+            );
+          },
+          1000,
+        );
+      } else if (
+        printWindow
+      ) {
         const imageUrl =
-          canvas.toDataURL("image/png");
+          canvas.toDataURL(
+            "image/png",
+          );
 
         printWindow.document.write(
           `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>스탠드 스케일 실물 크기 비교</title><style>html,body{margin:0;background:#f7f4ef}body{padding:24px}img{display:block;width:100%;max-width:1200px;height:auto;margin:0 auto}p{font:12px Arial,sans-serif;color:#7a716c;text-align:center}@media print{body{padding:0;background:#fff}p{display:none}@page{size:A4 portrait;margin:8mm}}</style></head><body><img src="${imageUrl}" alt="실물 크기 비교 이미지"><p>인쇄 대화상자에서 ‘PDF로 저장’을 선택하세요.</p><script>window.onload=function(){window.print()}<\/script></body></html>`,
@@ -1399,8 +2001,9 @@ export default function Home() {
         printWindow.document.close();
       }
     } catch (error) {
-      if (printWindow)
+      if (printWindow) {
         printWindow.close();
+      }
 
       window.alert(
         error instanceof Error
@@ -1411,10 +2014,6 @@ export default function Home() {
       setExporting(false);
     }
   };
-
-  const hasResults = pieces.some(
-    (piece) => calculate(piece),
-  );
 
   const installApp = async () => {
     if (installPrompt) {
@@ -1539,7 +2138,9 @@ export default function Home() {
               )
             }
             onClear={() =>
-              clearPiece(piece.id)
+              clearPiece(
+                piece.id,
+              )
             }
           />
         ))}
@@ -1645,6 +2246,7 @@ export default function Home() {
             value={diagonal}
             onChange={setDiagonal}
             min={1}
+            max={MAX_DIAGONAL_INCH}
             suffix="inch"
           />
 
@@ -1717,20 +2319,24 @@ export default function Home() {
               ↔ 스크롤하여 큰 규격도 비교하세요
             </span>
 
-            <span>단위: mm</span>
+            <span>
+              단위: mm
+            </span>
           </div>
 
           <div className="stage-scroll">
             <div className="stage-pieces">
-              {pieces.map((piece) => (
-                <LifeSizePiece
-                  key={piece.id}
-                  piece={piece}
-                  pixelsPerMm={
-                    pixelsPerMm
-                  }
-                />
-              ))}
+              {pieces.map(
+                (piece) => (
+                  <LifeSizePiece
+                    key={piece.id}
+                    piece={piece}
+                    pixelsPerMm={
+                      pixelsPerMm
+                    }
+                  />
+                ),
+              )}
             </div>
           </div>
         </div>
@@ -1798,4 +2404,4 @@ export default function Home() {
       </footer>
     </main>
   );
-                }
+}
